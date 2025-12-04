@@ -1,0 +1,208 @@
+// MessageQueue.cpp
+#include "MessageQueue.h"
+#include "Encryption.h"
+
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <ctime>
+#include <vector>
+#include <string>
+
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+#endif
+
+#if defined(_WIN32)
+  #include <direct.h>
+#else
+  #include <sys/stat.h>
+  #include <sys/types.h>
+#endif
+
+// optional transport via libcurl
+#if __has_include(<curl/curl.h>)
+  #include <curl/curl.h>
+  #define HAS_CURL 1
+#else
+  #define HAS_CURL 0
+#endif
+
+static void ensure_dir_exists(const std::string &path) {
+#if __has_include(<filesystem>)
+    try { fs::create_directories(path); } catch (...) {}
+#else
+#if defined(_WIN32)
+    _mkdir(path.c_str());
+#else
+    mkdir(path.c_str(), 0755);
+#endif
+#endif
+}
+
+MessageQueue::MessageQueue(const std::string &masterKey_, const std::string &logKey_)
+    : masterKey(masterKey_), logKey(logKey_) {}
+
+MessageQueue::~MessageQueue() {
+    if (!masterKey.empty()) sodium_memzero((void*)masterKey.data(), masterKey.size());
+    if (!logKey.empty()) sodium_memzero((void*)logKey.data(), logKey.size());
+}
+
+void MessageQueue::addMessage(const std::string &content, int priority)
+{
+    try {
+        std::string boxed = encrypt_aead(content, masterKey);
+        Message msg{boxed, priority};
+        messages.push_back(std::move(msg));
+        std::cout << "Message added to queue.\n";
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to encrypt message: " << e.what() << "\n";
+    }
+}
+
+// Simple HTTP POST sender: sends JSON {"message": "<b64>", "priority": N}
+// Returns true if sent OK. Requires libcurl.
+static bool post_ciphertext(const std::string &url, const std::string &b64msg, int priority) {
+#if HAS_CURL
+    CURL *curl = curl_easy_init();
+    if (!curl) return false;
+    std::string body = "{\"message\":\"" + b64msg + "\",\"priority\":" + std::to_string(priority) + "}";
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    CURLcode res = curl_easy_perform(curl);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    return res == CURLE_OK;
+#else
+    (void)url; (void)b64msg; (void)priority;
+    return false;
+#endif
+}
+
+void MessageQueue::sendMessages()
+{
+    if (messages.empty()) { std::cout << "No messages to send.\n"; return; }
+
+    ensure_dir_exists("modules");
+    ensure_dir_exists("modules/emergency_messenger");
+    ensure_dir_exists("modules/emergency_messenger/logs");
+    ensure_dir_exists("modules/emergency_messenger/keys");
+
+    std::ofstream logFile("modules/emergency_messenger/logs/sent_messages.log", std::ios::app | std::ios::binary);
+    if (!logFile.is_open()) std::cerr << "Warning: unable to open log file for writing metadata.\n";
+
+    std::sort(messages.begin(), messages.end(), [](const Message &a, const Message &b){ return a.priority < b.priority; });
+
+    // transport URL: set to a test endpoint or keep empty to disable network send
+    const std::string TRANSPORT_URL = "https://your-server.example/receive"; // e.g., "https://httpbin.org/post"
+
+    for (const auto &msg : messages) {
+        try {
+            // decrypt for sending (in-memory only)
+            std::string plaintext = decrypt_aead(msg.text, masterKey);
+            std::cout << "Sending (plaintext): " << plaintext << " [Priority: " << msg.priority << "]\n";
+
+            // Prepare record: timestamp + b64(message_ciphertext) + priority
+            std::time_t now = std::time(nullptr);
+            std::string ts = std::ctime(&now);
+            if (!ts.empty() && ts.back()=='\n') ts.pop_back();
+
+            std::string b64_msg = binToBase64(reinterpret_cast<const unsigned char*>(msg.text.data()), msg.text.size());
+            std::string record_plain = ts + " : " + b64_msg + " [Priority: " + std::to_string(msg.priority) + "]";
+
+            // Encrypt record_plain with logKey (if provided) to keep logs encrypted at rest.
+            // If logKey is empty, write base64(message) plainly (still ciphertext-of-message).
+            if (!logKey.empty()) {
+                std::string wrapped = encrypt_aead(record_plain, logKey); // wrapped = nonce||ct
+                std::string wrapped_b64 = binToBase64(reinterpret_cast<const unsigned char*>(wrapped.data()), wrapped.size());
+                if (logFile.is_open()) logFile << wrapped_b64 << "\n";
+            } else {
+                if (logFile.is_open()) logFile << record_plain << "\n";
+            }
+            if (logFile.is_open()) logFile.flush();
+
+            // Optionally POST ciphertext-only to server (disable by leaving TRANSPORT_URL empty)
+            if (!TRANSPORT_URL.empty()) {
+                bool ok = post_ciphertext(TRANSPORT_URL, b64_msg, msg.priority);
+                if (!ok) std::cerr << "Warning: transport post failed (network or libcurl missing)\n";
+            }
+
+            sentMessages.push_back(msg);
+        } catch (const std::exception &e) {
+            std::cerr << "Failed to decrypt/send message: " << e.what() << "\n";
+        }
+    }
+
+    messages.clear();
+    if (logFile.is_open()) logFile.close();
+}
+
+void MessageQueue::showQueue()
+{
+    if (messages.empty()) { std::cout << "Queue is empty.\n"; return; }
+    std::cout << "--- Current Queue ---\n";
+    for (const auto &msg : messages) {
+        try {
+            std::string plaintext = decrypt_aead(msg.text, masterKey);
+            std::cout << plaintext << " (Priority: " << msg.priority << ")\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Error decrypting message: " << e.what() << "\n";
+        }
+    }
+}
+
+void MessageQueue::loadMessagesFromFile(const std::string &filepath)
+{
+    std::ifstream file(filepath, std::ios::binary);
+    if (!file.is_open()) { std::cerr << "Warning: messages file not found: " << filepath << "\n"; return; }
+    std::string line;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) continue;
+        try {
+            std::vector<unsigned char> bin = base64ToBin(line);
+            std::string ciphertext(reinterpret_cast<char*>(bin.data()), bin.size());
+            messages.push_back(Message{ciphertext, 2});
+        } catch (const std::exception &e) {
+            std::cerr << "Failed to parse stored message line: " << e.what() << "\n";
+        }
+    }
+    file.close();
+}
+
+void MessageQueue::saveMessagesToFile(const std::string &filepath)
+{
+    std::ofstream file(filepath, std::ios::binary | std::ios::trunc);
+    if (!file.is_open()) { std::cerr << "Failed to open messages file for saving: " << filepath << "\n"; return; }
+    for (const auto &msg : messages) {
+        try {
+            std::string b64 = binToBase64(reinterpret_cast<const unsigned char*>(msg.text.data()), msg.text.size());
+            file << b64 << "\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Failed to encode message for saving: " << e.what() << "\n";
+        }
+    }
+    file.close();
+}
+
+void MessageQueue::viewSentHistory()
+{
+    if (sentMessages.empty()) { std::cout << "No messages have been sent yet.\n"; return; }
+    std::cout << "--- Sent Messages (metadata only) ---\n";
+    for (const auto &msg : sentMessages) {
+        try {
+            std::string b64 = binToBase64(reinterpret_cast<const unsigned char*>(msg.text.data()), msg.text.size());
+            if (b64.size() > 24)
+                std::cout << "Sent message (ciphertext b64 prefix): " << b64.substr(0,24) << "... (Priority: " << msg.priority << ")\n";
+            else
+                std::cout << "Sent message (ciphertext b64): " << b64 << " (Priority: " << msg.priority << ")\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Error handling sent message: " << e.what() << "\n";
+        }
+    }
+}
