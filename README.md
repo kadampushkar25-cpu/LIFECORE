@@ -1,3 +1,13 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/status-active-brightgreen" />
+  <img src="https://img.shields.io/badge/security-high-critical" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" />
+  <img src="https://img.shields.io/badge/built_with-C++17-lightgrey" />
+  <img src="https://img.shields.io/badge/crypto-AEAD%20XChaCha20--Poly1305-orange" />
+  <img src="https://img.shields.io/badge/KDF-Argon2id-red" />
+  <img src="https://img.shields.io/badge/platform-LIFECORE-black" />
+</p>
+
 🔐 LIFECORE  
 A future-ready emergency communication kernel designed for the moments where ordinary systems fail.
 
