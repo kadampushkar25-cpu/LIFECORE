@@ -1,7 +1,7 @@
 // encrypt-and-send.js (client-side). Uses server public-key encryption (crypto_box)
 (async () => {
   await sodium.ready;
-  const serverPubKeyB64 = '<PUT_SERVER_PUBKEY_B64_HERE>'; // get from server
+  const serverPubKeyB64 = '1M4K5z4yJ0IIPb4tAfAMHkqN8yi31bHigxQLR0mfQ20='; // get from server
   const endpoint = 'https://httpbin.org/post'; // replace with your server
   const sendBtn = document.getElementById('send');
   const status = document.getElementById('status');
