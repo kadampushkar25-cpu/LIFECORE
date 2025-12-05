@@ -8,29 +8,16 @@
   <img src="https://img.shields.io/badge/platform-LIFECORE-black" />
 </p>
 
-Branding:
-     ███╗      ██╗  ██████╗
-    ██╔██╗     ██║ ██╔═══██╗
-   ██╔╝ ██╗    ██║ ██║   ██║   LIFECORE
-  ██╔╝  ██║██╗ ██║ ██║   ██║   Emergency Signal Kernel
- ██║   ██║╚═╝ ██║ ╚██████╔╝
- ╚═╝   ╚═╝    ╚═╝  ╚═════╝
-Vertical bars → rising emergency signal
-
-Central block → “the core”
-
-Symmetry → stability & trust
-
-Minimalist design → cryptographic precision
-
-Heavy-weight type → resilience under stress
+---
 
 🔐 LIFECORE  
 A future-ready emergency communication kernel designed for the moments where ordinary systems fail.
 
 LIFECORE provides a reliable, secure, and unstoppable channel for urgent human signals.  
 It exists because today’s communication tools are slow, fragile, and not built for life-critical urgency.  
-LIFECORE redesigns emergency messaging from the ground up — **private, instant, unforgeable, and resilient**.
+LIFECORE redesigns emergency messaging from the ground up — **private, instant, unforgeable, and resilient.
+
+---
 
 🌍 Why LIFECORE Exists
 Emergencies expose weaknesses in every communication system:
@@ -41,6 +28,8 @@ Emergencies expose weaknesses in every communication system:
 - Existing apps aren’t designed for panic, danger, or impact
 
 LIFECORE aims to become the always-available safety layer** — a minimal, secure kernel built ahead of its time that makes sure an SOS is never ignored, lost, or compromised.
+
+---
 
 🚀 Key Capabilities
 - End-to-end encryption (XChaCha20-Poly1305 AEAD)  
@@ -67,6 +56,7 @@ LIFECORE aims to become the always-available safety layer** — a minimal, secur
 - Lightweight, auditable C++ kernel 
   Minimal external dependencies; designed for inspection and trust.
 
+---
 
 🏗 Project Structure
 
@@ -99,8 +89,12 @@ LIFECORE/
 ├── Makefile # build system for kernel + tests
 └── .github/workflows/ci.yml # CI: build + crypto tests
 
+---
+
 Open in your browser:
 👉 http://localhost:8080
+
+---
 
 🔐 Security Model Overview
 Encryption:
@@ -136,6 +130,8 @@ wrapped_logkey.bin — wrapped with masterKey, required for log decryption
 
 Losing these makes old records unrecoverable (by design)
 
+---
+
 🛠 Development Roadmap
 
 Real-time encrypted transport (WebSocket/QUIC)
@@ -148,10 +144,14 @@ Emergency geolocation encryption
 
 Rate-limited blast channels for life-critical alerts
 
+---
+
 🤝 Contributing
 
 Pull requests welcome — LIFECORE is designed to be auditable, extendable, and community-driven.
 Open an issue for new suggestions or improvement ideas.
+
+---
 
 📄 License
 
