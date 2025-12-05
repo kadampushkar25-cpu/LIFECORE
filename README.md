@@ -8,6 +8,23 @@
   <img src="https://img.shields.io/badge/platform-LIFECORE-black" />
 </p>
 
+Branding:
+     ███╗      ██╗  ██████╗
+    ██╔██╗     ██║ ██╔═══██╗
+   ██╔╝ ██╗    ██║ ██║   ██║   LIFECORE
+  ██╔╝  ██║██╗ ██║ ██║   ██║   Emergency Signal Kernel
+ ██║   ██║╚═╝ ██║ ╚██████╔╝
+ ╚═╝   ╚═╝    ╚═╝  ╚═════╝
+Vertical bars → rising emergency signal
+
+Central block → “the core”
+
+Symmetry → stability & trust
+
+Minimalist design → cryptographic precision
+
+Heavy-weight type → resilience under stress
+
 🔐 LIFECORE  
 A future-ready emergency communication kernel designed for the moments where ordinary systems fail.
 
